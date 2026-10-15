@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not summary.available %}
+<section class="empty-state" aria-labelledby="empty-title">
+  <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+  {% if summary.status == 'malformed' or summary.status == 'invalid' %}
+  <h2 id="empty-title">Detection report unavailable</h2>
+  <p>The existing report file could not be parsed. Run <strong>Analyze Logs</strong> to regenerate it from the access logs.</p>
+  {% else %}
+  <h2 id="empty-title">No detection report yet</h2>
+  <p>Run <strong>Analyze Logs</strong> to execute the detection engine over the JSONL access logs and generate the first findings report.</p>
+  {% endif %}
+  <button class="btn btn-primary analyze-inline" type="button" data-analyze>Analyze Logs</button>
+</section>
+{% else %}
+
+<section aria-labelledby="kpis-title">
+  <h2 id="kpis-title" class="visually-hidden">Key indicators</h2>
+  <div class="stat-grid">
+    <article class="card stat-card">
+      <p class="stat-label">Total requests analyzed</p>
+      <p class="stat-value mono">{{ summary.total_requests }}</p>
+      <p class="stat-hint">Across both JSONL access logs</p>
+    </article>
+    <article class="card stat-card">
+      <p class="stat-label">Total alerts</p>
+      <p class="stat-value mono">{{ summary.total_alerts }}</p>
+      <p class="stat-hint">From the generated report</p>
+    </article>
+    <article class="card stat-card severity-high">
+      <p class="stat-label">High severity</p>
+      <p class="stat-value mono">{{ summary.by_severity.high }}</p>
+      <p class="stat-hint">Redirects &amp; admin-path probes</p>
+    </article>
+    <article class="card stat-card severity-medium">
+      <p class="stat-label">Medium severity</p>
+      <p class="stat-value mono">{{ summary.by_severity.medium }}</p>
+      <p class="stat-hint">Methods, bursts, resources</p>
+    </article>
+    <article class="card stat-card severity-low">
+      <p class="stat-label">Low severity</p>
+      <p class="stat-value mono">{{ summary.by_severity.low }}</p>
+      <p class="stat-hint">Informational lab-endpoint access</p>
+    </article>
+    <article class="card stat-card">
+      <p class="stat-label">Detection rules triggered</p>
+      <p class="stat-value mono">{{ summary.rules_triggered|length }} <span class="stat-sub">/ {{ summary.rules_defined or 6 }}</span></p>
+      <p class="stat-hint">{% if summary.rules_triggered %}{{ summary.rules_triggered|join(', ') }}{% else %}No rules fired{% endif %}</p>
+    </article>
+  </div>
+</section>
+
+<section class="two-col" aria-label="Alert breakdowns">
+  <article class="card">
+    <header class="card-header">
+      <h2>Alerts by rule</h2>
+      {% if by_rule %}
+      <span class="card-meta mono">{{ summary.total_alerts }} total</span>
+      {% endif %}
+    </header>
+    {% if by_rule %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th scope="col">Rule</th><th scope="col">Name</th><th scope="col">Severity</th><th scope="col" class="num">Count</th></tr>
+        </thead>
+        <tbody>
+          {% for rule in by_rule %}
+          <tr>
+            <td class="mono"><a href="{{ url_for('alerts_page', rule=rule.rule_id) }}">{{ rule.rule_id }}</a></td>
+            <td>{{ rule.rule_name }}</td>
+            <td><span class="badge badge-{{ rule.severity }}">{{ rule.severity }}</span></td>
+            <td class="num mono">{{ rule.count }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="empty-inline">No detection rules were triggered in the current report.</p>
+    {% endif %}
+  </article>
+
+  <article class="card">
+    <header class="card-header">
+      <h2>Alerts by severity &amp; source</h2>
+    </header>
+    <div class="sev-bars" role="list">
+      {% for sev in ['high', 'medium', 'low'] %}
+      {% set count = summary.by_severity[sev] %}
+      {% set pct = (count * 100 / summary.total_alerts)|round|int if summary.total_alerts else 0 %}
+      <div class="sev-bar" role="listitem">
+        <div class="sev-bar-head">
+          <span class="badge badge-{{ sev }}">{{ sev }}</span>
+          <span class="mono">{{ count }}</span>
+        </div>
+        <div class="bar-track" aria-hidden="true"><div class="bar-fill bar-{{ sev }}" data-bar-width="{{ pct }}"></div></div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="source-split">
+      <div>
+        <p class="stat-label">Legitimate ShopSafe (5000)</p>
+        <p class="mono stat-value-sm">{{ summary.by_source.legitimate }}</p>
+      </div>
+      <div>
+        <p class="stat-label">Compromised sim (5001)</p>
+        <p class="mono stat-value-sm">{{ summary.by_source.compromised }}</p>
+      </div>
+    </div>
+  </article>
+</section>
+
+<section class="card" aria-labelledby="recent-title">
+  <header class="card-header">
+    <h2 id="recent-title">Recent alerts</h2>
+    <a class="card-link" href="{{ url_for('alerts_page') }}">View all alerts &rarr;</a>
+  </header>
+  {% if recent_alerts %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th scope="col">Time (UTC)</th>
+          <th scope="col">Website</th>
+          <th scope="col">Rule</th>
+          <th scope="col">Severity</th>
+          <th scope="col">Path</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for alert in recent_alerts %}
+        <tr>
+          <td class="mono nowrap">{{ alert.timestamp }}</td>
+          <td>{{ alert.source_label }}</td>
+          <td class="mono">{{ alert.rule_id }}</td>
+          <td><span class="badge badge-{{ alert.severity }}">{{ alert.severity }}</span></td>
+          <td class="mono path-cell" title="{{ alert.path }}">{{ alert.path }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-inline">The current report contains no alerts. All analysed traffic matched the expected laboratory baseline.</p>
+  {% endif %}
+</section>
+
+{% endif %}
+{% endblock %}

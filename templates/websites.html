@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="lab-banner" role="note" aria-label="Laboratory notice">
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+  <div>
+    <strong>Controlled laboratory environment.</strong>
+    The compromised storefront is a local, authorized simulation. It does not deploy malware, steal credentials, or contact any external infrastructure. All traffic stays on 127.0.0.1.
+  </div>
+</section>
+
+<section class="two-col site-grid" aria-label="Monitored websites">
+  {% for source_id in ['legitimate', 'compromised'] %}
+  {% set site = sites[source_id] %}
+  {% set stats = source_stats[source_id] %}
+  <article class="card site-card {{ 'site-compromised' if source_id == 'compromised' else 'site-legit' }}">
+    <header class="card-header">
+      <div>
+        <h2>{{ site.label }}</h2>
+        <p class="card-meta">{{ site.role }}</p>
+      </div>
+      <span class="badge {{ 'badge-medium' if source_id == 'compromised' else 'badge-low' }}">{{ site.port }}</span>
+    </header>
+    <p class="site-desc">{{ site.description }}</p>
+    <dl class="kv-grid">
+      <div>
+        <dt>Requests analyzed</dt>
+        <dd class="mono">{{ stats.requests }}</dd>
+      </div>
+      <div>
+        <dt>Alerts</dt>
+        <dd class="mono">{{ stats.alerts }}</dd>
+      </div>
+      <div>
+        <dt>Access log</dt>
+        <dd class="mono">{{ site.log_name }}</dd>
+      </div>
+      <div>
+        <dt>Log status</dt>
+        <dd>{% if stats.log_present %}<span class="badge badge-low">present</span>{% else %}<span class="badge badge-high">missing</span>{% endif %}</dd>
+      </div>
+      {% if stats.parse_errors %}
+      <div>
+        <dt>Skipped malformed lines</dt>
+        <dd class="mono">{{ stats.parse_errors }}</dd>
+      </div>
+      {% endif %}
+    </dl>
+    <footer class="site-footer">
+      <a class="btn btn-outline" href="{{ site.url }}" target="_blank" rel="noopener noreferrer">
+        Open {{ site.short_label }} &nearr;
+      </a>
+      <span class="mono site-url">{{ site.url }}</span>
+    </footer>
+  </article>
+  {% endfor %}
+</section>
+
+<section class="card" aria-labelledby="compare-title">
+  <header class="card-header">
+    <h2 id="compare-title">Side-by-side comparison</h2>
+  </header>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th scope="col">Metric</th>
+          <th scope="col">Legitimate ShopSafe (5000)</th>
+          <th scope="col">Simulated compromised (5001)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Requests analyzed</td>
+          <td class="mono">{{ source_stats.legitimate.requests }}</td>
+          <td class="mono">{{ source_stats.compromised.requests }}</td>
+        </tr>
+        <tr>
+          <td>Alerts raised</td>
+          <td class="mono">{{ source_stats.legitimate.alerts }}</td>
+          <td class="mono">{{ source_stats.compromised.alerts }}</td>
+        </tr>
+        <tr>
+          <td>Log file</td>
+          <td class="mono">{{ sites.legitimate.log_name }}</td>
+          <td class="mono">{{ sites.compromised.log_name }}</td>
+        </tr>
+        <tr>
+          <td>Role in laboratory</td>
+          <td>Baseline of normal traffic</td>
+          <td>Controlled indicator generation</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  {% if not summary.available %}
+  <p class="empty-inline">Run <strong>Analyze Logs</strong> to populate request and alert figures from the access logs.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

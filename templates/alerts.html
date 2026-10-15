@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="card filter-card" aria-label="Alert filters">
+  <form class="filter-form" method="get" action="{{ url_for('alerts_page') }}">
+    <div class="field field-search">
+      <label for="filter-q">Search</label>
+      <input type="search" id="filter-q" name="q" value="{{ query }}" placeholder="Path, evidence, rule, IP&hellip;" maxlength="200">
+    </div>
+    <div class="field">
+      <label for="filter-severity">Severity</label>
+      <select id="filter-severity" name="severity">
+        <option value="">All severities</option>
+        {% for sev in severities %}
+        <option value="{{ sev }}" {{ 'selected' if filters.get('severity') == sev }}>{{ sev|capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="filter-source">Website</label>
+      <select id="filter-source" name="source">
+        <option value="">Both websites</option>
+        <option value="legitimate" {{ 'selected' if filters.get('source') == 'legitimate' }}>Legitimate ShopSafe (5000)</option>
+        <option value="compromised" {{ 'selected' if filters.get('source') == 'compromised' }}>Compromised sim (5001)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="filter-rule">Rule</label>
+      <select id="filter-rule" name="rule">
+        <option value="">All rules</option>
+        {% for rule_id in rule_options %}
+        <option value="{{ rule_id }}" {{ 'selected' if filters.get('rule') == rule_id }}>{{ rule_id }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field field-actions">
+      <button class="btn btn-primary" type="submit">Apply filters</button>
+      <a class="btn btn-ghost" href="{{ url_for('alerts_page') }}">Clear</a>
+    </div>
+  </form>
+</section>
+
+{% if not report_result.ok %}
+<section class="empty-state">
+  <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+  {% if report_result.status == 'malformed' or report_result.status == 'invalid' %}
+  <h2>Detection report unavailable</h2>
+  <p>The existing report file could not be parsed. Run <strong>Analyze Logs</strong> to regenerate it.</p>
+  {% else %}
+  <h2>No detection report yet</h2>
+  <p>Alerts appear here after the detection engine analyzes the JSONL access logs. Run <strong>Analyze Logs</strong> to generate a report.</p>
+  {% endif %}
+  <button class="btn btn-primary analyze-inline" type="button" data-analyze>Analyze Logs</button>
+</section>
+{% elif not alerts %}
+<section class="empty-state">
+  <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+  {% if filtered %}
+  <h2>No alerts match the current filters</h2>
+  <p>Try broadening the search query or clearing one of the filter selections.</p>
+  <a class="btn btn-outline" href="{{ url_for('alerts_page') }}">Clear filters</a>
+  {% else %}
+  <h2>No alerts detected</h2>
+  <p>The current report contains no alert records. All analysed traffic matched the expected laboratory baseline.</p>
+  {% endif %}
+</section>
+{% else %}
+
+<section class="card" aria-labelledby="results-title">
+  <header class="card-header">
+    <h2 id="results-title">Alert records</h2>
+    <span class="card-meta mono" id="alert-count">{{ alerts|length }} shown{% if filtered %} (filtered){% endif %}</span>
+  </header>
+  <div class="table-wrap">
+    <table class="data-table alerts-table" id="alerts-table">
+      <thead>
+        <tr>
+          <th scope="col">Time (UTC)</th>
+          <th scope="col">Website</th>
+          <th scope="col">Rule</th>
+          <th scope="col">Severity</th>
+          <th scope="col">Path</th>
+          <th scope="col">Evidence</th>
+          <th scope="col">Recommendation</th>
+          <th scope="col"><span class="visually-hidden">Details</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for alert in alerts %}
+        <tr data-alert-id="{{ alert.id }}">
+          <td class="mono nowrap">{{ alert.timestamp }}</td>
+          <td>{{ alert.source_label }}</td>
+          <td>
+            <span class="mono">{{ alert.rule_id }}</span>
+            <span class="rule-name">{{ alert.rule_name }}</span>
+          </td>
+          <td><span class="badge badge-{{ alert.severity }}">{{ alert.severity }}</span></td>
+          <td class="mono path-cell" title="{{ alert.path }}">{{ alert.path }}</td>
+          <td class="cell-truncate" title="{{ alert.evidence }}">{{ alert.evidence }}</td>
+          <td class="cell-truncate" title="{{ alert.recommendation }}">{{ alert.recommendation }}</td>
+          <td><button class="btn btn-small btn-outline details-btn" type="button" data-alert-id="{{ alert.id }}">Details</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+<dialog class="alert-dialog" id="alert-dialog" aria-labelledby="dialog-title">
+  <header class="dialog-header">
+    <h2 id="dialog-title">Alert details</h2>
+    <button class="dialog-close" type="button" aria-label="Close details" data-dialog-close>&times;</button>
+  </header>
+  <div class="dialog-body" id="dialog-body">
+    <p class="muted">Loading&hellip;</p>
+  </div>
+</dialog>
+
+{% endblock %}

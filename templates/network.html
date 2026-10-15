@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="lab-banner lab-banner-info" role="note" aria-label="Integration scope notice">
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+  <div>
+    <strong>Documentation only.</strong>
+    This dashboard does <em>not</em> read live Wireshark captures, talk to
+    <code>tshark</code>, or ingest pcap files. The notes below are static
+    laboratory reference material for correlating the JSONL access logs with
+    packet-level observations captured manually in Wireshark.
+  </div>
+</section>
+
+<section class="card" aria-labelledby="ws-title">
+  <header class="card-header">
+    <h2 id="ws-title">Capturing loopback traffic in Wireshark</h2>
+  </header>
+  <ol class="steps">
+    <li>Install Wireshark (with the Npcap loopback adapter on Windows) and select the <strong>Loopback</strong> interface (<code>\Device\NPF_Loopback</code> / &ldquo;Adapter for loopback traffic capture&rdquo;).</li>
+    <li>Apply a capture filter: <code class="mono">tcp port 5000</code> for the legitimate site or <code class="mono">tcp port 5001</code> for the compromised simulation.</li>
+    <li>Start the relevant Flask application and generate traffic, either manually in a browser or with the laboratory traffic generator: <code class="mono">python tests/generate_test_traffic.py all</code> (run from <code>SafeShop-Compromised</code>).</li>
+    <li>Stop the capture and correlate HTTP request/response pairs with the corresponding JSONL log records (same timestamp, path, and status code).</li>
+  </ol>
+</section>
+
+<section class="card" aria-labelledby="wscorr-title">
+  <header class="card-header">
+    <h2 id="wscorr-title">Expected packet-level evidence per scenario</h2>
+  </header>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th scope="col">Scenario / rule</th>
+          <th scope="col">Capture filter</th>
+          <th scope="col">Expected HTTP evidence</th>
+          <th scope="col">Log correlation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>A &mdash; Unexpected redirect<br><span class="mono muted">WHD-001</span></td>
+          <td class="mono">tcp port 5001</td>
+          <td><code>GET /lab-test/redirect</code> answered by <code>HTTP/1.1 302 Found</code> with a <code>Location: /lab-test/redirect-target</code> header</td>
+          <td>Log record with <code>path=/lab-test/redirect</code> and <code>status_code=302</code></td>
+        </tr>
+        <tr>
+          <td>B &mdash; Suspicious path<br><span class="mono muted">WHD-002</span></td>
+          <td class="mono">tcp port 5001</td>
+          <td><code>GET /lab-test/admin-test</code> answered by <code>HTTP/1.1 200 OK</code> (static lab page)</td>
+          <td>Log record with <code>path=/lab-test/admin-test</code></td>
+        </tr>
+        <tr>
+          <td>C &mdash; Abnormal method<br><span class="mono muted">WHD-003</span></td>
+          <td class="mono">tcp port 5001</td>
+          <td><code>POST /lab-test/method-check</code> answered by <code>HTTP/1.1 405 Method Not Allowed</code></td>
+          <td>Log record with <code>method=POST</code> and <code>status_code=405</code></td>
+        </tr>
+        <tr>
+          <td>D &mdash; Repeated requests<br><span class="mono muted">WHD-004</span></td>
+          <td class="mono">tcp port 5001</td>
+          <td>Burst of <code>GET /lab-test/repeat</code> requests within a short window</td>
+          <td>Many log records for the same path in a 10-second window</td>
+        </tr>
+        <tr>
+          <td>E &mdash; Unapproved resource<br><span class="mono muted">WHD-005</span></td>
+          <td class="mono">tcp port 5001</td>
+          <td><code>GET /lab-test/resources/unapproved.js</code> served from the same origin (path-level indicator only &mdash; not proof of a cross-origin load)</td>
+          <td>Log record with the unapproved resource path</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="two-col">
+  <article class="card">
+    <header class="card-header"><h2>Correlation workflow</h2></header>
+    <ol class="steps">
+      <li>Run the detection engine (dashboard <strong>Analyze Logs</strong> button or <code class="mono">python detector.py</code>).</li>
+      <li>Open the <a href="{{ url_for('alerts_page') }}">Alerts</a> page and note the timestamp, path, and status of an alert.</li>
+      <li>In Wireshark, display-filter by request line, e.g. <code class="mono">http.request.uri == "/lab-test/redirect"</code>.</li>
+      <li>Confirm the packet-level response matches the logged status code and any redirect headers.</li>
+    </ol>
+  </article>
+  <article class="card">
+    <header class="card-header"><h2>Scope &amp; limitations</h2></header>
+    <ul class="plain-list">
+      <li>No live packet capture integration exists; all evidence on this page is reference documentation.</li>
+      <li>Loopback captures require the Npcap loopback adapter; redirects are only visible at packet level when capturing on the loopback interface.</li>
+      <li>Scenario E is a <strong>path-level</strong> indicator: the unapproved script is served by the same application origin.</li>
+      <li>Detection figures shown elsewhere in this dashboard come exclusively from the JSONL access logs, not from packet data.</li>
+    </ul>
+  </article>
+</section>
+
+{% endblock %}

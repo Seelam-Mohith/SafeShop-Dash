@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ page_title }} ·{% endblock %} ShopSafe SOC</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div class="sidebar-brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        </span>
+        <div class="brand-text">
+          <strong>ShopSafe SOC</strong>
+          <span>Watering-Hole Lab</span>
+        </div>
+      </div>
+      <div class="sidebar-badge" role="note">
+        <span class="dot" aria-hidden="true"></span>
+        Controlled laboratory &middot; localhost only
+      </div>
+      <nav class="sidebar-nav">
+        <a href="{{ url_for('overview') }}" class="{{ 'active' if request.endpoint == 'overview' }}">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+          Overview
+        </a>
+        <a href="{{ url_for('websites') }}" class="{{ 'active' if request.endpoint == 'websites' }}">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+          Websites
+        </a>
+        <a href="{{ url_for('alerts_page') }}" class="{{ 'active' if request.endpoint == 'alerts_page' }}">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></path></svg>
+          Alerts
+        </a>
+        <a href="{{ url_for('network') }}" class="{{ 'active' if request.endpoint == 'network' }}">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          Network Evidence
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <p>Detection engine report</p>
+        {% if report_available and report_generated_at %}
+        <p class="mono report-time">Generated {{ report_generated_at }}</p>
+        {% else %}
+        <p class="report-time muted">No report generated yet</p>
+        {% endif %}
+      </div>
+    </aside>
+
+    <div class="main-wrap">
+      <header class="topbar">
+        <div class="topbar-title">
+          <h1>{{ page_title }}</h1>
+          <p class="topbar-sub">Watering-Hole Detection Laboratory &middot; ShopSafe</p>
+        </div>
+        <div class="topbar-actions">
+          <span class="status-chip {{ 'status-ok' if report_available else 'status-warn' }}" id="report-status-chip">
+            {% if report_available and report_generated_at %}
+            Report {{ report_generated_at }}
+            {% elif report_status == 'malformed' or report_status == 'invalid' %}
+            Report unreadable
+            {% else %}
+            No report yet
+            {% endif %}
+          </span>
+          <a class="btn btn-ghost" href="{{ url_for('report_json') }}" title="Download the findings report as JSON">Download JSON</a>
+          <a class="btn btn-ghost" href="{{ url_for('report_csv') }}" title="Export alert records as CSV">Export CSV</a>
+          <button class="btn btn-primary" id="analyze-btn" type="button" title="Run the detection engine over the JSONL access logs">
+            <span class="btn-spinner" hidden aria-hidden="true"></span>
+            <span class="analyze-label">Analyze Logs</span>
+          </button>
+        </div>
+      </header>
+
+      <div id="toast-region" class="toast-region" role="status" aria-live="polite"></div>
+
+      <main id="main-content" class="content">
+        {% block content %}{% endblock %}
+      </main>
+
+      <footer class="page-footer">
+        <p>Authorized local laboratory &middot; figures derived solely from recorded JSONL access logs &middot; {{ now_year }}</p>
+      </footer>
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+</body>
+</html>
